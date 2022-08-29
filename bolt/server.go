@@ -4,14 +4,52 @@ import (
 	"net/http"
 )
 
+type Next = func()
+type Middleware = func(ctx *Ctx, next Next)
+
+type Bolt struct {
+	middleware []Middleware
+	run        *Next
+	handler    Handler
+}
+
+type Handler struct {
+	stack Middleware
+}
+
+type Ctx struct {
+	Status     int
+	Path       string
+	Method     string
+	Body       interface{}
+	JSON       *[]byte
+	PathParams map[string]string
+	response   *[]byte
+	Headers    map[string]string
+	R          *http.Request
+	W          http.ResponseWriter
+}
+
 func NewBolt() *Bolt {
 	app := Bolt{
 		middleware: make([]Middleware, 0),
+		handler:    Handler{},
 	}
 	return &app
 }
 
-func (z *Bolt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (z *Bolt) Use(m Middleware) {
+	z.middleware = append(z.middleware, m)
+}
+
+func (b *Bolt) HttpHandler() Handler {
+	middlewareStack := ComposeMiddleware(&b.middleware)
+	b.handler.stack = middlewareStack
+
+	return b.handler
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := createContext(w, r)
 
@@ -20,17 +58,14 @@ func (z *Bolt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(ctx.W, "Something went wrong. Error:", http.StatusInternalServerError)
 		}
 
-		z.respondWith(w, ctx)
+		h.respond(w, ctx)
 	}()
 
-	middlewareStack := ComposeMiddleware(&z.middleware)
-
 	noOpNext := func() {}
-	middlewareStack(ctx, noOpNext)
-
+	h.stack(ctx, noOpNext)
 }
 
-func (z *Bolt) respondWith(w http.ResponseWriter, ctx *Ctx) (int, error) {
+func (h *Handler) respond(w http.ResponseWriter, ctx *Ctx) (int, error) {
 
 	for k, v := range ctx.Headers {
 		w.Header().Set(k, v)
@@ -44,8 +79,4 @@ func (z *Bolt) respondWith(w http.ResponseWriter, ctx *Ctx) (int, error) {
 
 	return 0, nil
 
-}
-
-func (z *Bolt) Use(m Middleware) {
-	z.middleware = append(z.middleware, m)
 }

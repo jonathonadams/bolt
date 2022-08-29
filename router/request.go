@@ -19,8 +19,6 @@ import (
  */
 func splitIncomingRoute(ctx *bolt.Ctx) (*[]string, error) {
 
-	panic("I PANICED")
-
 	var validSegments []string
 
 	// the path will always have a leading / even on an empty request

@@ -38,7 +38,7 @@ func main() {
     app.Use(runSecond)
 
 	fmt.Printf("Server is running on port %s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, app))
+	log.Fatal(http.ListenAndServe(":"+port, app.HttpHandler()))
 }
 ```
 
@@ -109,7 +109,7 @@ func main() {
     app.Use(router.Routes())
 
 	fmt.Printf("Server is running on port %s\n", port)
-    log.Fatal(http.ListenAndServe(":"+port, app))
+    log.Fatal(http.ListenAndServe(":"+port, app.HttpHandler()))
 }
 ```
 
